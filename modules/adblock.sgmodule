@@ -1,0 +1,9 @@
+#!name=AdBlock (dmulle12)
+#!desc=Reject ads and trackers with the self-hosted hagezi Multi PRO list (rebuilt daily, no MITM required). Note: DNS-layer blocking cannot remove in-feed ads served from first-party domains.
+#!category=AdBlock
+#!author=dmulle12
+
+[Rule]
+# hagezi Multi PRO (~231k domains), rebuilt daily by dmulle12/rules CI.
+# On low-memory devices, point this at ads-mini.list (~60k) instead.
+DOMAIN-SET,https://github.com/dmulle12/rules/raw/rel/ads.list,REJECT
