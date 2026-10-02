@@ -7,6 +7,9 @@
 # - 开屏/广告 API 直接拒绝 (App 无广告可播会直接跳过)
 # - 信息流接口返回的 JSON 里混着广告条目 (is_ads 字段), 用脚本剔除
 # 注意: DNS/规则层拦不住信息流广告是已知结论, 必须靠 MITM + 脚本改响应体
+#
+# 致谢: 开屏 reject 规则参考 NobyDa/Script 与 Sunert/Profiles 的社区规则;
+#       信息流过滤思路参考 zwf234/rules 的 douyin.js。本模块为按需重写, 非直接复制。
 
 [Rule]
 # 开屏广告与字节广告 API (参考 NobyDa / Sunert 社区规则)
