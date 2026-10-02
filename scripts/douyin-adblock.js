@@ -8,6 +8,11 @@
  * 配套模块: https://github.com/dmulle12/surge/raw/main/modules/douyin-adblock.sgmodule
  * 需要开启 MITM 并在 iOS 上信任 Surge 证书, 否则脚本不会生效
  *
+ * 致谢 (署名先行):
+ * - 信息流按 is_ads 过滤的思路参考 zwf234/rules 的 douyin.js
+ * - 开屏 reject 规则参考 NobyDa/Script 与 Sunert/Profiles 的社区规则
+ * 本脚本为按需重写 (仅去广告, 不含去水印), 非直接复制
+ *
  * 容错: 非 JSON 响应 (如 protobuf) 或解析失败时直接透传, 不影响正常使用
  */
 
