@@ -1,0 +1,22 @@
+#!name=抖音去广告
+#!desc=去除抖音开屏广告与推荐/关注/同城/搜索信息流中的广告。需要开启 MITM 并信任 Surge 证书。
+#!category=AdBlock
+#!author=dmulle12
+
+# 原理:
+# - 开屏/广告 API 直接拒绝 (App 无广告可播会直接跳过)
+# - 信息流接口返回的 JSON 里混着广告条目 (is_ads 字段), 用脚本剔除
+# 注意: DNS/规则层拦不住信息流广告是已知结论, 必须靠 MITM + 脚本改响应体
+
+[Rule]
+# 开屏广告与字节广告 API (参考 NobyDa / Sunert 社区规则)
+URL-REGEX,^https?:\/\/[\w-]+\.(amemv|snssdk)\.com\/(api|motor)\/ad\/,REJECT
+URL-REGEX,^https?:\/\/[\w-]+\.snssdk\.com\/.+_ad\/,REJECT
+URL-REGEX,^https?:\/\/[\w-]+\.snssdk\.com\/motor\/operation\/activity\/display\/config\/V2\/,REJECT
+
+[Script]
+# 信息流去广告: 推荐/作品/关注/同城/搜索/热搜 (requires-body, 失败自动透传)
+抖音信息流去广告 = type=http-response,pattern=^https?:\/\/.+?\.(amemv|snssdk)\.com\/aweme\/v\d\/(feed|aweme\/post|follow\/feed|nearby\/feed|search\/item|general\/search\/single|hot\/search\/video\/list)\/,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/dmulle12/surge/main/scripts/douyin-adblock.js
+
+[MITM]
+hostname = %APPEND% *.amemv.com, *.snssdk.com
