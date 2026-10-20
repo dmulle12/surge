@@ -1,0 +1,20 @@
+#!name=Tinder 去广告
+#!desc=隐藏 Tinder 卡片流广告与 Gold/Platinum 升级弹窗。需要开启 MITM 并信任 Surge 证书。付费功能(无限喜欢、Rewind、Passport、Likes You)由服务器控制,本脚本不解锁。
+#!category=AdBlock
+#!author=devchristian1337(原作) / dmulle12(移植)
+
+# 原理:
+# - 改写 api.gotinder.com 的两个 JSON 响应:
+#   /v2/meta    关闭广告位 levers 开关, 广告 cadence 拉到 1000000(实际不再插入)
+#   /v2/profile 打开 hide_ads, 清掉 paywall 入口与活动弹窗
+# - 脚本只用 $request/$response/$done 标准接口, 与 Surge http-response 完全兼容, 无 Loon 专有 API
+#
+# 致谢: 脚本原作 devchristian1337/loon-plugins(MIT 许可), 本模块仅做 Loon -> Surge 的格式移植;
+#       脚本文件直接引用原仓库 main 分支(与 tinder-adblock 分支内容经校验完全一致), 未改动、未复制。
+
+[Script]
+Tinder meta = type=http-response,pattern=^https:\/\/api\.gotinder\.com\/v2\/meta(\?.*)?$,requires-body=1,max-size=0,timeout=10,script-path=https://raw.githubusercontent.com/devchristian1337/loon-plugins/refs/heads/main/Scripts/Tinder/tinder-adblock.js
+Tinder profile = type=http-response,pattern=^https:\/\/api\.gotinder\.com\/v2\/profile\?include=.*(feature_access|paywalls|purchase),requires-body=1,max-size=0,timeout=10,script-path=https://raw.githubusercontent.com/devchristian1337/loon-plugins/refs/heads/main/Scripts/Tinder/tinder-adblock.js
+
+[MITM]
+hostname = %APPEND% api.gotinder.com
