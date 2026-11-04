@@ -1,0 +1,59 @@
+#!name=91国产
+#!desc=91国产 (H5 网页版) 去广告 + 金币/VIP/付费帖前端解锁: 向入口页注入 Hook 脚本, 在网页内拦 JSON.parse、fetch、XHR 并清广告 DOM。需要开启 MITM 并信任 Surge 证书, 用浏览器/WebView 打开入口站才有效。
+#!category=Premium
+#!author=彭于晏💞(原作) / dmulle12(Surge 移植)
+
+# 原理 (原 QX 脚本逻辑, 移植未改脚本本体):
+# - 这是网页插件, 不是 App API 插件: 入口是 06erg.com 和 da8ttmrfqqhqf.cloudfront.net 的 H5 页面
+# - 请求阶段: 删 If-None-Match / If-Modified-Since 并强制 Cache-Control: no-cache, 保证每次拿到新页面
+# - 响应阶段: 只对 HTML 页面在 </head> 前注入一段 Hook 脚本, 非 HTML / 非目标域名直接透传
+# - 注入脚本在网页里干活: Hook JSON.parse 把 isVip/vipLevel 改为 VIP9、到期 2099,
+#   金币/积分改 999999, 清 adsInfoList 与广告配置; 拦 fetch/XHR/axios/window.open/location
+#   掐广告请求与跳转; MutationObserver + CSS 持续移除开屏/弹窗/悬浮广告 DOM
+#
+# 兼容性 (2026-11-05 已读完上游 91gc.js 全文 1095 行核验):
+# - 脚本本体只用 $request.headers / $request.url / $response.body / $response.headers / $done,
+#   无 $prefs / $notification / $httpClient / $task 等任何 QX 专有 API, 一行不用改
+# - 脚本靠 typeof $response === 'undefined' 区分请求头模式与响应模式; Surge 的
+#   http-request 阶段同样没有 $response, 分流逻辑成立 (代码层结论, 非真机结论)
+# - 唯一格式改动: QX 的 script-request-header 在 Surge 没有对应类型, 统一用
+#   type=http-request 表达 (Surge 请求脚本本就能改请求头), 其余条目一一对应
+# - 脚本文件直接引用原仓库 main 分支, 未改动、未复制
+#
+# 没验过的 / 已知边界:
+# - 真机未验: 本模块是草稿, 装上 Surge 实测才算数 (老规矩)
+# - 解锁是纯前端的: 改的只是网页里看到的 VIP/金币字段; 付费视频/帖子若服务端
+#   另查权益或单独下发播放地址, 前端改字段救不了, 要实测才知道能开到哪一层
+# - 原 conf 写「捕获成功后, 点击通知即可观看」, 但当前上游脚本里没有任何
+#   通知代码, 与说明对不上 —— 以脚本实际行为为准: 注入成功没有提示, 刷新页面看效果
+# - 响应模式里有顶层 return (QX 下能跑); Surge 脚本引擎对它的处理未做真机验证,
+#   这是本草稿第一个要盯的点: 若真机报脚本错误, 把 return 改成 if/else 包裹即可
+# - 原作者要求「关闭其他脚本」: 注入 Hook 会改写 JSON.parse 等全局行为,
+#   与其他同样注入该站的脚本叠加容易互相打架, 出问题先单独开本模块排查
+# - MITM 含 *.cloudfront.net 与 *.cyou 这类大通配, 与原 conf 一致原样保留;
+#   介意通配范围的话可以删, 但入口域名换到新 cloudfront 子域时可能漏拦
+#
+# 致谢: 脚本原作 彭于晏💞 (QX 版, 见脚本头注释), 本模块仅做 QX -> Surge 格式移植
+
+[Rule]
+# 事件追踪 / DC 上报 (原 [filter_local])
+URL-REGEX,^https?:\/\/d3k4e7spixznr4\.cloudfront\.net\/,REJECT
+URL-REGEX,^https?:\/\/api-dc-prod-\d+\.cyou\/,REJECT
+URL-REGEX,^https?:\/\/api-dc2-prod-\d+\.cyou\/,REJECT
+# 广告 SDK (Butterfly 通用)
+URL-REGEX,^https?:\/\/.*\.eqfx9bas\.cc\/,REJECT
+URL-REGEX,^https?:\/\/.*\.yihaici\.(?:top|com)\/,REJECT
+URL-REGEX,^https?:\/\/.*\.epuf3tk\.cc\/,REJECT
+# 广告静态资源
+URL-REGEX,^https?:\/\/[^\/]+\/upload_01\/ads\/,REJECT
+
+[Script]
+# 请求头去缓存 (原 script-request-header -> Surge http-request)
+91国产 请求头 CloudFront = type=http-request,pattern=^https?:\/\/da8ttmrfqqhqf\.cloudfront\.net\/.*,requires-body=0,timeout=10,script-path=https://raw.githubusercontent.com/89996462/Quantumult-X/main/ghs/91gc.js
+91国产 请求头 入口 = type=http-request,pattern=^https?:\/\/06erg\.com\/.*,requires-body=0,timeout=10,script-path=https://raw.githubusercontent.com/89996462/Quantumult-X/main/ghs/91gc.js
+# 响应体注入 Hook (原 script-response-body; 脚本内部只对 HTML 页面动手, 其余透传)
+91国产 页面注入 CloudFront = type=http-response,pattern=^https?:\/\/da8ttmrfqqhqf\.cloudfront\.net\/.*,requires-body=1,max-size=-1,timeout=10,script-path=https://raw.githubusercontent.com/89996462/Quantumult-X/main/ghs/91gc.js
+91国产 页面注入 入口 = type=http-response,pattern=^https?:\/\/06erg\.com\/.*,requires-body=1,max-size=-1,timeout=10,script-path=https://raw.githubusercontent.com/89996462/Quantumult-X/main/ghs/91gc.js
+
+[MITM]
+hostname = %APPEND% 06erg.com, da8ttmrfqqhqf.cloudfront.net, d1w3p997s8acw6.cloudfront.net, d3k4e7spixznr4.cloudfront.net, sssyyshc.lkkwip.cn, *.cloudfront.net, *.lkkwip.cn, *.cyou, *.eqfx9bas.cc, *.yihaici.top, *.yihaici.com, *.epuf3tk.cc
