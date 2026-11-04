@@ -1,0 +1,59 @@
+#!name=91短视频
+#!desc=91短视频去广告 + 播放链接捕获: pwa.php 响应解密清广告/开屏; 捕获带会话头的 m3u8 请求, 换成 CloudFront 直链后发通知, 点通知观看。需要开启 MITM 并信任 Surge 证书。
+#!category=Premium
+#!author=彭于晏💞(原作) / dmulle12(Surge 移植)
+
+# 这个插件是两件独立的事 (原 conf 里就是两个脚本):
+# [A. 去广告] 91dspad.js 改 pwa.php 的响应: 与 51吃瓜 同一套路 —— AES-CFB 解密
+#     (密钥 cc88ddc9357ff461e08f047aedee692b, 与 51cg 不同套) -> 清广告字段、
+#     开屏广告换成 1x1 透明图占位 -> 重新加密签名。注意: 这个脚本只有去广告,
+#     没有任何 VIP/金币改动, conf 标题里的「解锁」指的全是下面 B 的捕获玩法。
+# [B. 链接捕获] 91dsp.js 盯 .cn 域名下 /<32位>/<32位>.m3u8 的请求: 请求头带
+#     X-Playback-Session-Id 才算捕获成功, 把域名换成写死的 CloudFront 地址
+#     d39jna88gmha0l.cloudfront.net 后发通知, 点通知打开直链观看 (不在 App 内解锁)。
+#
+# 兼容性 (2026-11-05 已读完两个脚本全文核验):
+# - 去广告脚本 (815 行): 只用 $request.body/bodyBytes、$response.body/bodyBytes、$done
+#   标准接口 + 内置 CryptoJS, 无平台专有 API, 本体未改、直接引用原仓库。
+#   它靠请求体判断只改 system/index 与 element/getConstructById 两类响应;
+#   Surge 若不给 http-response 脚本传请求体, 它读不到就默认全改 (脚本本身的兜底
+#   逻辑), 不会崩, 但影响面变大 —— 这点真机才验得了。
+# - 捕获脚本 (原版单行混淆): 不能原样搬, 已另写 Surge 适配版 91dsp-capture.js。
+#   原版平台判断以 $task 判 Surge, Surge 没 $task 会走错分支, 通知参数用 QX 的
+#   "url" 而非 Surge 的 "open-url" (通知能弹、点开没反应); 结尾
+#   $done({response:{headers}}) 也是 QX 回传写法, Surge 里 response 是构造响应、
+#   语义不同。适配版只改这两处, 逻辑一致, 并已用 mock 的 Surge 全局对象在
+#   node 里真跑过命中/未命中两条路径 (通知链接与 $done({}) 放行都对)。
+#   适配版 script-path 指向 dmulle12/surge 的 scripts/91dsp-capture.js:
+#   先把随附脚本放到那个位置 (或改成你自己的托管地址), 捕获功能才能用;
+#   去广告那条引用原仓库, 不受影响。
+#
+# 没验过的 / 已知边界:
+# - 真机未验: 本模块是草稿, 装上 Surge 实测才算数 (老规矩)
+# - MITM 名单是 conf 与捕获脚本自带名单的并集: 捕获脚本那份补了 fnomellx.cc、
+#   aozngkwm.com、fipxor.cn、iajckz.cn 等 .cn 播放域名, 不合并捕获条目根本触发不了
+# - 名单里的 10play.*.cn、120play.*.cn、h5play.*.com、long.*.cn 是「中间通配」
+#   写法, 原样保留自原作者; Surge 对这种写法的接受程度未验, 若模块加载报错,
+#   先删这四个再试
+# - 捕获依赖 App 请求里真带 X-Playback-Session-Id 头; 播放域名/路径格式一变
+#   (不再是两段 32 位), 正则就抓不到, 属原作者写死的规则, 不是移植问题
+# - 密钥同样是抓包写死的, 服务端轮换后去广告脚本自动透传失效
+#
+# 致谢: 脚本原作 彭于晏💞 (QX 版), 本模块仅做 QX -> Surge 格式移植 + 捕获脚本平台适配
+
+[Rule]
+# 上报与广告资源直拒 (原 [filter-local] 五条, 原样转 URL-REGEX)
+URL-REGEX,^https?:\/\/ap\.dc-report\.cc\/,REJECT
+URL-REGEX,^https?:\/\/[^\/]+\/upload_01\/ads\/,REJECT
+URL-REGEX,^https?:\/\/[^\/]+\/upload\/ads\/,REJECT
+URL-REGEX,^https?:\/\/[^\/]+\/new\/ads\/,REJECT
+URL-REGEX,^https?:\/\/pwa1\.drkusdmul\.cc\/img\/splash\..+\.png,REJECT
+
+[Script]
+# B. 播放链接捕获 (原 script-request-header -> Surge http-request; 用适配版脚本, 理由见文件头)
+91短视频 链接捕获 = type=http-request,pattern=^https:\/\/[^\/]*\..*\.cn\/\w+\/[a-z0-9]{32}\/[a-z0-9]{32}\.m3u8(\?.*)?,requires-body=0,timeout=10,script-path=https://raw.githubusercontent.com/dmulle12/surge/main/scripts/91dsp-capture.js
+# A. pwa.php 响应去广告 (原 script-response-body, 脚本本体未改、引用原仓库)
+91短视频 去广告 = type=http-response,pattern=^https?:\/\/[^\/]+\/pwa\.php,requires-body=1,max-size=-1,timeout=10,script-path=https://raw.githubusercontent.com/89996462/Quantumult-X/main/ghs/91dspad.js
+
+[MITM]
+hostname = %APPEND% pfzpnj.rsvurzldo.cc, *.rsvurzldo.cc, ujvxsl.rsvurzldo.cc, zwsfxv.rsvurzldo.cc, pwa1.drkusdmul.cc, *.drkusdmul.cc, new.jfxgtd.cn, *.jfxgtd.cn, tp2.jfxgtd.cn, tp3.jfxgtd.cn, 10play.ncbfdb.cn, 10play.*.cn, 120play.*.cn, tp5.iajckz.cn, h5play.*.com, long.*.cn, *.fipxor.cn, p4.aozngkwm.com, *.aozngkwm.com, api2.fnomellx.cc, *.fnomellx.cc, api2.anpbbxdyo.com, *.anpbbxdyo.com
