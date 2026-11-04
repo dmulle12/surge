@@ -1,0 +1,43 @@
+#!name=51吃瓜
+#!desc=51吃瓜去广告 + 金币/VIP 视频本地解锁: 解密 API 响应、清广告字段、改播放地址与会员字段后重新加密签名返回。需要开启 MITM 并信任 Surge 证书。
+#!category=Premium
+#!author=彭于晏💞(原作) / dmulle12(Surge 移植)
+
+# 原理 (原 QX 脚本逻辑, 移植未改核心):
+# - API 响应是 AES-CBC 加密 + 签名的 JSON: 脚本用内置 CryptoJS 和抓包提取的
+#   AES_KEY / AES_IV / SIGN_SALT 解密 -> 改数据 -> 重新加密并重算 sign
+# - 去广告: 清 home/config 的开屏/弹窗/悬浮广告位, 列表流剔除广告条目,
+#   其余响应递归清 ads / pop_ads / floating_ads 等字段
+# - 视频: preview_url 的 -10.m3u8 (10 秒预览) 改回完整 .m3u8, coins 清零,
+#   is_pay / isfree 改为已付费; 用户对象改 is_vip=1、coins/money=99999、过期时间 +1 年
+#
+# 兼容性 (2026-11-05 已逐行读完脚本全文核验):
+# - 全脚本只用 $request / $response / $done / $notification 标准接口 + 内置 CryptoJS,
+#   无 $httpClient、无 QX 专有调用残留, 与 Surge http-response 兼容
+# - 唯一真改动: 原版域名记录用 QX 的 $prefs, Surge 没有这个 API —— 已改成
+#   $persistentStore (read/write, 参数顺序相反), 并保留 QX 回退; 这段在原版里
+#   被 try/catch 包着, 就算不改核心功能也能跑, 改了之后域名变更通知在 Surge 下才有效
+# - 脚本已过 node --check 语法校验
+#
+# 没验过的 / 已知边界:
+# - 真机未验: 这是代码层核验 + 语法校验的结论, 装上 Surge 实测才算数 (老规矩)
+# - 密钥是原作者 2026-07 抓包写死的: 服务端若轮换 AES 密钥/签名盐, 脚本会解密失败
+#   并自动透传原响应 (表现为插件“没反应”), 不是模块写法问题
+# - API 域名是 bpi4/bpi5 + 随机域名, MITM 名单只覆盖原脚本给的已知后缀
+#   (*.azmnhrfc.com / *.azmzyrwn.cc 等); 换新后缀时脚本会发通知提醒, 需手动补进 [MITM]
+# - script-path 指向 dmulle12/surge 仓库的 scripts/51cg.js: 先把随附的 51cg.js
+#   放到那个位置 (或把 script-path 改成你自己的托管地址), 模块才能拉到适配版脚本
+#
+# 致谢: 脚本原作 彭于晏💞 (QX 版, 见脚本头注释), 本模块仅做 QX -> Surge 格式移植 + $prefs 适配
+
+[Rule]
+# 广告资源与活动页直拒 (原 QX [filter_local] 三条, 原样转 URL-REGEX)
+URL-REGEX,^https?:\/\/[^\/]+\/upload_01\/ads\/,REJECT
+URL-REGEX,^https?:\/\/[^\/]*jqgjyipzs\.com\/,REJECT
+URL-REGEX,^https?:\/\/[^\/]+\/lottery\/worldcup\/,REJECT
+
+[Script]
+51吃瓜 = type=http-response,pattern=^https?:\/\/bpi[45]\.[a-z0-9-]+\.[a-z]{2,}\/api\.php\/api\/,requires-body=1,max-size=0,timeout=10,script-path=https://raw.githubusercontent.com/dmulle12/surge/main/scripts/51cg.js
+
+[MITM]
+hostname = %APPEND% p11.gmjiphps.cc, *.gmjiphps.cc, bpi4.azmnhrfc.com, bpi5.azmzyrwn.cc, *.azmnhrfc.com, *.azmzyrwn.cc, pic.myedua.cn, *.myedua.cn, pic.fkqwky.cn, pic.sfbjdu.cn, hlsapp.fkqwky.cn, hlsapp.sfbjdu.cn
